@@ -1,0 +1,296 @@
+CONSTANT 	LED1_PORT, 00
+CONSTANT 	LED2_PORT, 01
+CONSTANT 	HEX1_PORT, 02
+CONSTANT 	HEX2_PORT, 03
+CONSTANT 	HEX3_PORT, 04
+CONSTANT 	HEX4_PORT, 05
+CONSTANT 	RGB1_PORT, 06
+CONSTANT 	RGB2_PORT, 07
+CONSTANT 	UART_TX_PORT, 08
+CONSTANT 	UART_RESET_PORT, 09
+
+CONSTANT 	SW1_PORT, 00
+CONSTANT 	SW2_PORT, 01
+CONSTANT 	BTN_PORT, 02
+CONSTANT 	UART_STATUS_PORT, 03
+CONSTANT 	UART_RX_PORT, 04
+
+CONSTANT U_TX_D, 01; 00000001 Tx data_present - bit0
+CONSTANT U_TX_H, 02; 00000010 Tx half_full    - bit1
+CONSTANT U_TX_F, 04; 00000100 Tx full         - bit2
+CONSTANT U_RX_D, 08; 00001000 Rx data_present - bit3
+CONSTANT U_RX_H, 10; 00010000 Rx half_full    - bit4
+CONSTANT U_RX_F, 20; 00100000 Rx full         - bit5
+
+					ADDRESS	000
+	
+;prvi zadatak
+
+		; LOAD s0,	00	;	niži bajt
+		; LOAD s1,	00	;	viši bajt
+; PETLJA: ADD s0,	01	;	s0	=	s0	+	01
+		; ADDCY s1,	00	;	s1	=	s1	+	00	+	C
+		; OUTPUT s1,	HEX1_PORT	;	viši bajt
+		; OUTPUT s0,	HEX2_PORT	;	niži bajt
+		; CALL DELAY
+		; JUMP PETLJA
+; DELAY:	 LOAD	 sA,	00
+; PETLJA1: LOAD	 sB,	00
+; PETLJA2: LOAD	 sC,	01
+; PETLJA3: SUB	 sC,	01
+		; JUMP	 NZ,	PETLJA3
+		; SUB	 sB,	01
+		; JUMP	 NZ,	PETLJA2
+		; SUB	 sA,	01
+		; JUMP	 NZ,	PETLJA1
+		; RETURN
+		
+		
+		
+;3 zadatak
+
+
+; START:	LOAD s1, 06		;	min
+		; LOAD s2, 01		;	max
+; PETLJA: INPUT s0, BTN_PORT
+		; COMPARE s0,	00
+		; JUMP Z,	PETLJA
+		; CALL DELAY500
+		; INPUT s0, SW2_PORT
+		; COMPARE s0, s1 
+		; CALL C, MIN ; ako s0 < s1 
+		; COMPARE s2, s0 
+		; CALL C, MAX ; ako s2 < s0 
+		; OUTPUT s1, HEX3_PORT 
+		; OUTPUT s2, HEX4_PORT 
+		; JUMP PETLJA
+; MIN: LOAD s1, s0 ; postavi min 
+		; RETURN 
+; MAX: LOAD s2, s0 ; postavi max RETURN
+; DELAY500: LOAD sA, 00
+; PETLJA1: LOAD sB, 00
+; PETLJA2: LOAD sC, BE
+; PETLJA3: SUB sC, 01
+		; JUMP NZ, PETLJA3
+		; SUB sB, 01
+		; JUMP NZ, PETLJA2
+		; SUB sA, 01
+		; JUMP NZ, PETLJA1
+		; RETURN
+
+
+
+		; ENABLE INTERRUPT
+; START: 	LOAD sD,	00	;	adresa =	0
+; SPREMI: INPUT s0,	BTN_PORT
+		; COMPARE s0,	00
+		; JUMP Z,	SPREMI
+		; CALL DELAY500
+		; INPUT s0,	SW2_PORT
+		; OUTPUT s0,	LED2_PORT
+		; STORE s0,	(sD)
+		; ADD sD,	01	;	adresa ++
+		; COMPARE sD,	64'd
+		; JUMP NZ,	SPREMI
+		; JUMP START
+; ISR: 	FETCH s1,	00	;	min	je	0-ti
+		; FETCH s2,	00	;	max	je	0-ti
+; CITAJ: 	OUTPUT s1,	HEX3_PORT
+		; OUTPUT s2,	HEX4_PORT
+		; CALL DELAY500
+		; COMPARE sD,	00
+		; JUMP Z,	KRAJ	;	ako sD =	0
+		; SUB sD,	01			;	adresa - -
+		; FETCH s0,	(sD)
+		; COMPARE s0,	s1
+		; CALL	 C,	MIN	;	ako	s0	<	s1
+		; COMPARE s2,	s0
+		; CALL C,	MAX	;	ako	s2	<	s0
+		; JUMP CITAJ
+; KRAJ: RETURNI ENABLE
+; DELAY500: LOAD sA, 00
+; PETLJA1: LOAD sB, 00
+; PETLJA2: LOAD sC, BE
+; PETLJA3: SUB sC, 01
+		; JUMP NZ, PETLJA3
+		; SUB sB, 01
+		; JUMP NZ, PETLJA2
+		; SUB sA, 01
+		; JUMP NZ, PETLJA1
+		; RETURN
+; MIN: 	LOAD s1,	s0	;	min
+		; RETURN
+; MAX: 	LOAD s2,	s0	;	max
+		; RETURN
+		; ADDRESS 7FF
+		; JUMP ISR
+		
+
+; START: 	LOAD s0,	00	;	adresa
+		; LOAD s1,	00	;	brojač
+; UCITAJ: CALL UART_RX
+		; COMPARE s9,	0D	;	'enter'
+		; JUMP Z,	ISPIS
+		; ADD s1,	01	;	brojač ++
+		; STORE s9,	(s0)
+		; ADD s0,	01	;	adresa ++
+		; COMPARE s0,	64'd
+		; JUMP NZ,	UCITAJ
+		; LOAD s0,	00
+		; JUMP UCITAJ
+; VUM: 	ADD s9,	20 ;	velika u
+		; JUMP DALJE ;	mala
+; MUV: 	SUB s9,	20 ;	mala	u
+		; RETURN ;	velika
+; ISPIS: 	LOAD s0,	00	;	adresa
+; PETLJA: FETCH s9,	(s0)
+		; ADD s0,	01	;	adresa ++
+		; COMPARE s9,	65'd
+		; JUMP C,	DALJE
+		; COMPARE s9,	93'd
+		; JUMP C,	VUM	;	velika u	mala
+		; COMPARE s9,	97'd
+		; JUMP C,	DALJE
+		; COMPARE s9,	123'd
+		; CALL C,	MUV	;	mala	u	velika
+; DALJE: 	CALL UART_TX
+		; SUB s1,	01 ;	brojač --
+		; JUMP NZ,	PETLJA
+		; JUMP START
+; UART_TX: INPUT sA, UART_STATUS_PORT
+		; TEST sA, U_TX_F ;	00000100'b
+		; JUMP NZ, UART_TX ;	petlja dok je	spremnik pun
+		; OUTPUT s9, UART_TX_PORT ;	podatak za slanje stavi u	FIFO
+		; RETURN
+; UART_RX: INPUT sA,	UART_STATUS_PORT
+		; TEST	 sA,	U_RX_D ;	00001000'b
+		; JUMP Z,	UART_RX ;	petlja dok podatak stigne
+		; INPUT s9,	UART_RX_PORT ;	primljeni podatak uzmi iz FIFO
+		; RETURN
+		
+; START: 	CALL UART_RX
+		; COMPARE s9,	70'd	;	‘F’
+		; JUMP NZ,	START
+		; CALL UART_RX
+		; COMPARE s9,	69'd ;	‘E’
+		; JUMP NZ,	START
+		; CALL UART_RX
+		; COMPARE s9,	82'd ;	‘R’
+		; JUMP NZ,	START
+		; CALL UART_RX
+		; COMPARE s9,	73'd ;	‘I’
+		; JUMP NZ,	START
+		; CALL UART_RX
+		; COMPARE s9,	84'd ;	‘T’
+		; JUMP NZ,	START		
+		; LOAD s0,	FF
+		; OUTPUT s0,	LED2_PORT
+		; CALL DELAY1000
+		; LOAD s0,	00
+		; OUTPUT s0,	LED2_PORT
+		; JUMP START		
+; DELAY1000:  LOAD s9, 02
+; PETLJA0: 	LOAD sA, 00
+; PETLJA1:	LOAD sB, 00	
+; PETLJA2: 	LOAD sC, BE
+; PETLJA3: 	SUB	 sC, 01
+			; JUMP NZ, PETLJA3
+			; SUB	sB,	01
+			; JUMP NZ, PETLJA2
+			; SUB	sA,	01
+			; JUMP NZ, PETLJA1
+			; SUB	s9, 01
+			; JUMP NZ, PETLJA0
+			; RETURN	
+; UART_TX: INPUT sA, UART_STATUS_PORT
+		; TEST sA, U_TX_F ;	00000100'b
+		; JUMP NZ, UART_TX ;	petlja dok je	spremnik pun
+		; OUTPUT s9, UART_TX_PORT ;	podatak za slanje stavi u	FIFO
+		; RETURN
+; UART_RX: INPUT sA,	UART_STATUS_PORT
+		; TEST	 sA,	U_RX_D ;	00001000'b
+		; JUMP Z,	UART_RX ;	petlja dok podatak stigne
+		; INPUT s9,	UART_RX_PORT ;	primljeni podatak uzmi iz FIFO
+		; RETURN
+	
+; START: 	CALL UART_RX
+		; COMPARE s9,	"L"	;	‘L’
+		; JUMP NZ, START
+		
+		; CALL UART_RX
+		; SUB s9, 30; 
+		; COMPARE s9,	08 ;	‘BRoj 0-76’
+		; JUMP NC, START
+		; LOAD s1, s9
+		
+		; CALL UART_RX
+		; COMPARE s9,	0D ;	‘\n’
+		; JUMP NZ, START
+		
+		; LOAD s0, 01
+; WHILE: 	COMPARE s1, 00
+		; JUMP Z, KRAJ
+		; SL0 s0
+		; SUB s1, 01
+		; JUMP WHILE
+; KRAJ: 	OUTPUT s0, LED2_PORT
+		; JUMP START
+		
+	
+; UART_TX: INPUT sA, UART_STATUS_PORT
+		; TEST sA, U_TX_F ;	00000100'b
+		; JUMP NZ, UART_TX ;	petlja dok je	spremnik pun
+		; OUTPUT s9, UART_TX_PORT ;	podatak za slanje stavi u	FIFO
+		; RETURN
+; UART_RX: INPUT sA,	UART_STATUS_PORT
+		; TEST	 sA,	U_RX_D ;	00001000'b
+		; JUMP Z,	UART_RX ;	petlja dok podatak stigne
+		; INPUT s9,	UART_RX_PORT ;	primljeni podatak uzmi iz FIFO
+		; RETURN		
+		
+
+
+
+
+START: 	LOAD s0,	00	;	adresa
+		LOAD s1,	00	;	brojač
+UCITAJ: CALL UART_RX
+		COMPARE s9,	0D	;	'enter'
+		JUMP Z,	ISPIS
+		ADD s1,	01	;	brojač ++
+		STORE s9,	(s0)
+		ADD s0,	01	;	adresa ++
+		COMPARE s0,	64'd
+		JUMP NZ,	UCITAJ
+		LOAD s0,	00
+		JUMP UCITAJ
+VUM: 	XOR s9,	20 ;	velika u
+		JUMP DALJE ;	mala
+ISPIS: 	LOAD s0,	00	;	adresa
+PETLJA: FETCH s9,	(s0)
+		ADD s0,	01	;	adresa ++
+		COMPARE s9,	65'd
+		JUMP C,	DALJE
+		COMPARE s9,	93'd
+		JUMP C,	VUM	;	velika u	mala
+		COMPARE s9,	97'd
+		JUMP C,	DALJE
+		COMPARE s9,	123'd
+		CALL C,	VUM	;	mala	u	velika
+DALJE: 	CALL UART_TX
+		SUB s1,	01 ;	brojač --
+		JUMP NZ, PETLJA
+		JUMP START
+		
+UART_TX: INPUT sA, UART_STATUS_PORT
+		TEST sA, U_TX_F ;	00000100'b
+		JUMP NZ, UART_TX ;	petlja dok je	spremnik pun
+		OUTPUT s9, UART_TX_PORT ;	podatak za slanje stavi u	FIFO
+		RETURN
+UART_RX: INPUT sA,	UART_STATUS_PORT
+		TEST	 sA,	U_RX_D ;	00001000'b
+		JUMP Z,	UART_RX ;	petlja dok podatak stigne
+		INPUT s9,	UART_RX_PORT ;	primljeni podatak uzmi iz FIFO
+		RETURN
+
+		
